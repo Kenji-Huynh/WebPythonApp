@@ -1,1 +1,1 @@
-Link: https://webpythonstapi.streamlit.app/
+Link: https://pythonappweb.streamlit.app/
