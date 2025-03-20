@@ -48,16 +48,6 @@ def render():
                     st.session_state.api_key
                 )
                 st.markdown(response)
-                
-                # Chuyển văn bản thành giọng nói với thông báo
-                with st.spinner("Đang chuyển đổi thành giọng nói..."):
-                    audio_path = text_to_speech(
-                        response, 
-                        st.session_state.tts_language, 
-                        st.session_state.tts_speed
-                    )
-                    if audio_path:
-                        st.audio(audio_path, format="audio/mp3")
         
         # Lưu phản hồi của AI vào lịch sử
         st.session_state.chat_history.append({
