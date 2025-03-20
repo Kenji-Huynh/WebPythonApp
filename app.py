@@ -2,6 +2,8 @@ import streamlit as st
 import config
 from utils.ai_service import get_ai_response
 from utils.tts_service import text_to_speech
+import requests  # Thêm dòng này
+from bs4 import BeautifulSoup
 
 # Thiết lập cấu hình trang
 st.set_page_config(
@@ -71,13 +73,66 @@ def render_summary():
     with col2:
         st.header("Tóm tắt văn bản")
     
-    text_to_summarize = st.text_area(
-        "Nhập văn bản cần tóm tắt",
-        height=200,
-        placeholder="Dán văn bản cần tóm tắt vào đây...",
-        key="summary_input"
+    # Tạo tabs cho hai chế độ tóm tắt
+    summary_type = st.radio(
+        "Chọn nguồn văn bản",
+        options=["📝 Nhập văn bản", "🔗 Từ URL"],
+        horizontal=True,
+        key="summary_type"
     )
     
+    st.divider()
+    
+    # Tab nhập văn bản trực tiếp
+    if summary_type == "📝 Nhập văn bản":
+        text_to_summarize = st.text_area(
+            "Nhập văn bản cần tóm tắt",
+            height=200,
+            placeholder="Dán văn bản cần tóm tắt vào đây...",
+            key="summary_input"
+        )
+        input_text = text_to_summarize
+        
+    # Tab nhập URL
+    else:
+        url_input = st.text_input(
+            "Nhập URL cần tóm tắt nội dung",
+            placeholder="https://example.com/article",
+            key="url_input"
+        )
+        
+        if url_input:
+            try:
+                with st.spinner("Đang tải nội dung từ URL..."):
+                    response = requests.get(url_input)
+                    response.raise_for_status()  # Kiểm tra lỗi HTTP
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    
+                    # Loại bỏ các thẻ script và style
+                    for script in soup(["script", "style"]):
+                        script.decompose()
+                    
+                    # Lấy text từ trang web
+                    text = soup.get_text()
+                    
+                    # Xử lý text: loại bỏ khoảng trắng thừa và dòng trống
+                    lines = (line.strip() for line in text.splitlines())
+                    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+                    text = ' '.join(chunk for chunk in chunks if chunk)
+                    
+                    # Hiển thị preview của nội dung
+                    with st.expander("Xem trước nội dung", expanded=False):
+                        st.text_area("Nội dung từ URL", value=text, height=200, disabled=True)
+                    
+                    input_text = text
+                    
+            except Exception as e:
+                st.error(f"❌ Không thể tải nội dung từ URL. Lỗi: {str(e)}")
+                return
+        else:
+            input_text = ""
+    
+    # Các tùy chọn tóm tắt
     col1, col2 = st.columns(2)
     with col1:
         summary_length = st.select_slider(
@@ -94,11 +149,17 @@ def render_summary():
             key="summary_style"
         )
     
-    summarize_button = st.button("📝 Tóm tắt ngay", use_container_width=True, type="primary", key="summarize_btn")
+    # Nút tóm tắt
+    summarize_button = st.button(
+        "📝 Tóm tắt ngay", 
+        use_container_width=True, 
+        type="primary", 
+        key="summarize_btn"
+    )
     
     if summarize_button:
-        if not text_to_summarize:
-            st.warning("⚠️ Vui lòng nhập văn bản cần tóm tắt", icon="📄")
+        if not input_text:
+            st.warning("⚠️ Vui lòng nhập văn bản hoặc URL cần tóm tắt", icon="📄")
             return
             
         if not st.session_state.api_key:
@@ -108,7 +169,7 @@ def render_summary():
         with st.spinner("AI đang tóm tắt văn bản..."):
             prompt = f"""Hãy tóm tắt văn bản sau với độ dài {summary_length.lower()} 
             theo phong cách {summary_style.lower()}. Đảm bảo giữ lại các ý chính và 
-            bỏ qua các chi tiết không quan trọng:\n\n{text_to_summarize}"""
+            bỏ qua các chi tiết không quan trọng:\n\n{input_text}"""
             
             summary = get_ai_response(
                 prompt, 
