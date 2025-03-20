@@ -1,6 +1,5 @@
 import streamlit as st
 from utils.ai_service import get_ai_response
-from utils.tts_service import text_to_speech
 
 def render():
     """Hiển thị trang trò chuyện"""
@@ -21,8 +20,6 @@ def render():
         role_icon = "🧑‍💻" if message["role"] == "user" else "🤖"
         with st.chat_message(message["role"], avatar=role_icon):
             st.markdown(message["content"])
-            if message["role"] == "assistant" and "audio_path" in message:
-                st.audio(message["audio_path"], format="audio/mp3")
     
     # Nhập tin nhắn với placeholder hữu ích
     user_input = st.chat_input("Nhập câu hỏi của bạn...", key="chat_input")
@@ -52,8 +49,7 @@ def render():
         # Lưu phản hồi của AI vào lịch sử
         st.session_state.chat_history.append({
             "role": "assistant", 
-            "content": response, 
-            "audio_path": audio_path if 'audio_path' in locals() else None
+            "content": response
         })
     
     # Thêm nút xóa lịch sử trò chuyện nếu có tin nhắn
