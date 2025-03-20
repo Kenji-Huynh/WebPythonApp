@@ -34,7 +34,6 @@ def initialize_session_state():
 def setup_sidebar():
     """Thiết lập sidebar với các cài đặt"""
     with st.sidebar:
-        st.image("https://seeklogo.com/images/G/google-ai-logo-996E78F950-seeklogo.com.png", width=100)
         st.title("Cài đặt")
         
         # API Key input với mẫu trợ giúp
