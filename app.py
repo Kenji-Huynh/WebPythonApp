@@ -19,6 +19,7 @@ config.setup_sidebar()
 
 def render_chat():
     """Hiển thị giao diện trò chuyện"""
+
     # Container cho header
     header_container = st.container()
     with header_container:
@@ -28,64 +29,69 @@ def render_chat():
         with col2:
             st.header("Trò chuyện với AI")
     
-    # Container cho input và clear button - đặt trước để nó luôn ở dưới
-    input_container = st.container()
-    
-    # Container cho tin nhắn chat
-    chat_container = st.container()
-    
     # Kiểm tra API key
     if not st.session_state.api_key:
         st.info("🔑 Vui lòng nhập Google AI API Key trong phần cài đặt để bắt đầu trò chuyện", icon="ℹ️")
         st.divider()
     
-    # Hiển thị lịch sử chat trong chat container
-    with chat_container:
-        for message in st.session_state.chat_history:
-            role_icon = "🧑‍💻" if message["role"] == "user" else "🤖"
-            with st.chat_message(message["role"], avatar=role_icon):
-                st.markdown(message["content"])
-    
-    # Xử lý input trong input container
-    with input_container:
-        # Nút xóa lịch sử
+    # Container chính với class để thêm padding
+    main_chat_container = st.container()
+    with main_chat_container:
+        st.markdown('<div class="main-container">', unsafe_allow_html=True)
+        
+        # Nút xóa lịch sử ở trên cùng nếu có tin nhắn
         if st.session_state.chat_history:
-            if st.button("🗑️ Xóa lịch sử trò chuyện", use_container_width=True, key="clear_chat_btn"):
+            if st.button("🗑️ Xóa lịch sử trò chuyện", use_container_width=True, key="clear_history"):
                 st.session_state.chat_history = []
                 st.rerun()
         
-        # Ô nhập tin nhắn
-        user_input = st.chat_input("Nhập câu hỏi của bạn...", key="chat_input")
+        # Hiển thị lịch sử chat
+        for idx, message in enumerate(st.session_state.chat_history):
+            role_icon = "🧑‍💻" if message["role"] == "user" else "🤖"
+            with st.chat_message(message["role"], avatar=role_icon):
+                st.markdown(message["content"])
         
-        if user_input:
-            if not st.session_state.api_key:
-                st.error("⚠️ Bạn cần nhập API Key trước khi gửi tin nhắn", icon="🔒")
-                return
-                
-            # Hiển thị tin nhắn người dùng trong chat container
-            with chat_container:
-                with st.chat_message("user", avatar="🧑‍💻"):
-                    st.markdown(user_input)
+    
+    # Chat input với key duy nhất
+    if "chat_input_key" not in st.session_state:
+        st.session_state.chat_input_key = 0
+
+    user_input = st.chat_input(
+        "Nhập câu hỏi của bạn...", 
+        key=f"chat_input_{st.session_state.chat_input_key}"
+    )
+    
+    if user_input:
+        if not st.session_state.api_key:
+            st.error("⚠️ Bạn cần nhập API Key trước khi gửi tin nhắn", icon="🔒")
+            return
             
-            # Lưu tin nhắn người dùng
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
-            
-            # Hiển thị phản hồi AI trong chat container
-            with chat_container:
-                with st.chat_message("assistant", avatar="🤖"):
-                    with st.spinner("AI đang suy nghĩ..."):
-                        response = get_ai_response(
-                            user_input, 
-                            st.session_state.selected_model, 
-                            st.session_state.api_key
-                        )
-                        st.markdown(response)
-            
-            # Lưu phản hồi AI
-            st.session_state.chat_history.append({
-                "role": "assistant", 
-                "content": response
-            })
+        # Hiển thị tin nhắn người dùng
+        with st.chat_message("user", avatar="🧑‍💻"):
+            st.markdown(user_input)
+        
+        # Lưu tin nhắn người dùng
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        
+        # Hiển thị phản hồi AI
+        with st.chat_message("assistant", avatar="🤖"):
+            with st.spinner("AI đang suy nghĩ..."):
+                response = get_ai_response(
+                    user_input, 
+                    st.session_state.selected_model, 
+                    st.session_state.api_key
+                )
+                st.markdown(response)
+        
+        # Lưu phản hồi AI
+        st.session_state.chat_history.append({
+            "role": "assistant", 
+            "content": response
+        })
+        
+        # Tăng key cho lần nhập tiếp theo
+        st.session_state.chat_input_key += 1
+        st.rerun()
 
 def render_summary():
     """Hiển thị giao diện tóm tắt văn bản"""
