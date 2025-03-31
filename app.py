@@ -2,10 +2,11 @@ import streamlit as st
 import config
 from utils.ai_service import get_ai_response
 from utils.tts_service import text_to_speech
-import requests  # Thêm dòng này
+import requests
 from bs4 import BeautifulSoup
+from datetime import datetime, timezone
 
-# Thiết lập cấu hình trang
+# Thiết lập cấu hình trang PHẢI ĐẶT TRƯỚC TIÊN
 st.set_page_config(
     page_title="Google AI Assistant", 
     page_icon="🤖",
@@ -37,8 +38,6 @@ def render_chat():
     # Container chính với class để thêm padding
     main_chat_container = st.container()
     with main_chat_container:
-        st.markdown('<div class="main-container">', unsafe_allow_html=True)
-        
         # Nút xóa lịch sử ở trên cùng nếu có tin nhắn
         if st.session_state.chat_history:
             if st.button("🗑️ Xóa lịch sử trò chuyện", use_container_width=True, key="clear_history"):
@@ -50,7 +49,14 @@ def render_chat():
             role_icon = "🧑‍💻" if message["role"] == "user" else "🤖"
             with st.chat_message(message["role"], avatar=role_icon):
                 st.markdown(message["content"])
-        
+                if message["role"] == "assistant":
+                    # Thêm nút copy cho mỗi tin nhắn
+                    col1, col2 = st.columns([6, 1])
+                    with col2:
+                        if st.button("📋 Copy", key=f"copy_{idx}", help="Copy nội dung"):
+                            import pyperclip
+                            pyperclip.copy(message["content"])
+                            st.success("✅ Đã copy!", icon="✅")
     
     # Chat input với key duy nhất
     if "chat_input_key" not in st.session_state:
@@ -82,6 +88,13 @@ def render_chat():
                     st.session_state.api_key
                 )
                 st.markdown(response)
+                # Thêm nút copy cho response mới
+                col1, col2 = st.columns([6, 1])
+                with col2:
+                    if st.button("📋 Copy", key=f"copy_new", help="Copy nội dung"):
+                        import pyperclip
+                        pyperclip.copy(response)
+                        st.success("✅ Đã copy!", icon="✅")
         
         # Lưu phản hồi AI
         st.session_state.chat_history.append({
@@ -205,20 +218,36 @@ def render_summary():
                 st.session_state.api_key
             )
             
-            st.success("✅ Tạo bản tóm tắt thành công!")
-            result_container = st.container(border=True)
-            with result_container:
+            # Lưu summary vào session state
+            st.session_state.current_summary = summary
+            
+    # Hiển thị kết quả nếu có trong session state
+    if 'current_summary' in st.session_state and st.session_state.current_summary:
+        st.success("✅ Tạo bản tóm tắt thành công!")
+        result_container = st.container(border=True)
+        with result_container:
+            # Tạo header với nút copy
+            header_col1, header_col2 = st.columns([5, 1])
+            with header_col1:
                 st.subheader("📋 Bản tóm tắt")
-                st.markdown(summary)
-                
-                st.download_button(
-                    label="📄 Tải xuống văn bản",
-                    data=summary,
-                    file_name="summary.txt",
-                    mime="text/plain",
-                    use_container_width=True,
-                    key="download_text_btn"
-                )
+            with header_col2:
+                if st.button("📋 Copy", key="copy_summary", help="Copy nội dung tóm tắt"):
+                    import pyperclip
+                    pyperclip.copy(st.session_state.current_summary)
+                    st.success("✅ Đã copy!", icon="✅")
+            
+            # Hiển thị nội dung tóm tắt
+            st.markdown(st.session_state.current_summary)
+            
+            # Nút tải xuống
+            st.download_button(
+                label="📄 Tải xuống văn bản",
+                data=st.session_state.current_summary,
+                file_name="summary.txt",
+                mime="text/plain",
+                use_container_width=True,
+                key="download_text_btn"
+            )
 
 def render_tts():
     """Hiển thị giao diện chuyển văn bản thành giọng nói"""
@@ -263,6 +292,14 @@ def render_tts():
                 with result_container:
                     st.subheader("🎵 Kết quả âm thanh")
                     st.audio(audio_path, format="audio/mp3")
+                    
+                    # Thêm nút copy cho văn bản
+                    col1, col2 = st.columns([5, 1])
+                    with col2:
+                        if st.button("📋 Copy", key="copy_tts", help="Copy nội dung văn bản"):
+                            import pyperclip
+                            pyperclip.copy(text_for_speech)
+                            st.success("✅ Đã copy!", icon="✅")
                     
                     with open(audio_path, "rb") as file:
                         st.download_button(
